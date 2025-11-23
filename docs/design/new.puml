@@ -1,0 +1,262 @@
+@startuml
+package domain.game {
+    interface CardBehavior {
+        +play(game: Game, playerIndex: int, context: Map<String, Object>): void
+        +canPlay(game: Game, playerIndex: int): boolean
+    }
+
+    class CardBehaviorFactory {
+        +getBehavior(cardType: CardType): CardBehavior
+        +registerBehavior(cardType: CardType, behavior: CardBehavior): void
+    }
+
+    class ExplodingKittenBehavior {
+        +play(game: Game, playerIndex: int, context: Map<String, Object>): void
+        +canPlay(game: Game, playerIndex: int): boolean
+        -resolveExplosion(game: Game, playerIndex: int): boolean
+    }
+
+    class NopeBehavior {
+        +play(game: Game, playerIndex: int, context: Map<String, Object>): void
+        +canPlay(game: Game, playerIndex: int): boolean
+        -findNopeTarget(game: Game): Card
+        -cancelCard(game: Game, targetCard: Card): boolean
+    }
+
+    class ShuffleBehavior {
+        +play(game: Game, playerIndex: int, context: Map<String, Object>): void
+        +canPlay(game: Game, playerIndex: int): boolean
+        -performShuffle(game: Game, shuffleCount: int): void
+    }
+
+    class DefuseBehavior {
+        +play(game: Game, playerIndex: int, context: Map<String, Object>): void
+        +canPlay(game: Game, playerIndex: int): boolean
+        -insertExplodingKitten(game: Game, insertionIndex: int): void
+    }
+
+    class Card {
+        -CardType cardType
+        -boolean isMarked
+        -boolean isFacedUp
+        -CardBehavior behavior
+        +Card(cardType: CardType, behavior: CardBehavior)
+        +getCardType(): CardType
+        +play(game: Game, playerIndex: int, context: Map<String, Object>): void
+        +canPlay(game: Game, playerIndex: int): boolean
+        +markCard()
+        +checkIfMarked(): boolean
+        +setFacedUp()
+        +checkIfFacedUp(): boolean
+    }
+
+    class CardType {
+        <<enumeration>>
+        NOPE
+        DEFUSE
+        ATTACK
+        SHUFFLE
+        SKIP
+        SEE_THE_FUTURE
+        CAT_ONE
+        CAT_TWO
+        CAT_THREE
+        CAT_FOUR
+        EXPLODING_KITTEN
+        STREAKING_KITTEN
+        SWAP_TOP_AND_BOTTOM
+        GARBAGE_COLLECTION
+        CURSE_OF_THE_CAT_BUTT
+        ALTER_THE_FUTURE
+        CATOMIC_BOMB
+        SUPER_SKIP
+        MARK
+        IMPLODING_KITTEN
+        REVERSE
+        FERAL_CAT
+        TARGETED_ATTACK
+        DRAW_FROM_THE_BOTTOM
+        -GameType gameType
+        +CardType(gameType: GameType)
+    }
+
+    class GameType {
+        <<enumeration>>
+        NONE
+        EXPLODING_KITTENS
+        STREAKING_KITTENS
+        IMPLODING_KITTENS
+    }
+
+    class Deck {
+        -List<Card> deck
+        -Random rand
+        -GameType gameType
+        -int numberOfPlayers
+        -int maxDeckSize
+        -Instantiator instantiator
+        -CardBehaviorFactory behaviorFactory
+        +Deck(List<Card>, Random, GameType, int, int, Instantiator, CardBehaviorFactory)
+        +getDeckSize(): int
+        +getCardAtIndex(int): Card
+        +initializeDeck()
+        +shuffleDeck()
+        +insertCard(cardType: CardType, numberOfCards: int, bottom: boolean)
+        +drawCard(): Card
+        +drawCardFromBottom(): Card
+        +setNumberOfPlayers(numberOfPlayers: int)
+        +chooseGameType(gameType: GameType)
+        +removeBombs(): int
+        +insertExplodingKittenAtIndex(indexToInsert: int)
+        +insertImplodingKittenAtIndex(indexToInsert: int, card: Card)
+        +getCardTypeAtIndex(index: int): CardType
+        +reorderDeckCards(newOrderIndices: int[], cardsToReorder: List<Card>)
+    }
+
+    class Game {
+        -int numberOfPlayers
+        -GameType gameType
+        -Deck deck
+        -Player[] players
+        -Random rand
+        -int currentPlayerTurn
+        -int currentPlayerNumberOfTurns
+        -boolean isReversed
+        -List<Integer> attackQueue
+        -int attackCounter
+        -int numberOfAttacks
+        -int[] turnTracker
+        -boolean attacked
+        -CardBehaviorFactory behaviorFactory
+        +Game(numberOfPlayers: int, gameType: GameType, deck: Deck, players: Player[], rand: Random, attackQueue: List<Integer>, turnTracker: int[], behaviorFactory: CardBehaviorFactory)
+        +playCard(playerIndex: int, cardIndex: int, context: Map<String, Object>): boolean
+        +playCardByType(playerIndex: int, cardType: CardType, context: Map<String, Object>): boolean
+        +swapTopAndBottom()
+        +stealRandomCard(playerToStealFrom: int): Card
+        +stealTypeCard(cardType: CardType, playerToStealFrom: int)
+        +startAttackPhase()
+        +playAttack()
+        +playTargetedAttack(attackedPlayerIndex: int)
+        +playExplodingKitten(playerIndex: int): boolean
+        +playImplodingKitten()
+        +playDefuse(idxToInsertExplodingKitten: int, playerIndex: int)
+        +drawFromBottom(): Card
+        +playCatomicBomb()
+        +setNumberOfPlayers(numberOfPlayers: int)
+        +playReverse()
+        +retrieveGameMode(gameType: GameType)
+        +selectRandomPlayer(): Player
+        +playShuffle(numberOfShuffles: int)
+        +playSkip(superSkip: boolean): int
+        +playGarbageCollection(cardToDiscard: CardType)
+        +getDeck(): Deck
+        +incrementPlayerTurn()
+        +incrementAttackCounter()
+        +setAttackCounter(playerIndex: int)
+        +getGameType(): GameType
+        +getPlayerAtIndex(playerIndex: int): Player
+        +addAttacks()
+        +playMark(playerIndex: int, cardIndex: int)
+        +addAttackQueue(attack: int)
+        +removeAttackQueue(): int
+        +isAttackQueueEmpty(): boolean
+        +setPlayerNumberOfTurns()
+        +getPlayerTurn(): int
+        +getNumberOfPlayers(): int
+        +checkNumberOfAlivePlayers(): int
+        +setCurrentPlayerNumberOfTurns(numberOfTurns: int)
+        +decrementNumberOfTurns()
+        +getNumberOfTurns(): int
+        +getDeckSize(): int
+        +drawCard(): Card
+        +getCardAtIndex(cardIndex: int): Card
+        +removeCardFromHand(playerIndex: int, cardType: CardType)
+        +getIndexOfCardFromHand(playerIndex: int, cardType: CardType): int
+        +addCardToHand(card: Card)
+        +checkIfPlayerDead(playerIndex: int): boolean
+        +checkIfPlayerHasCard(playerIndex: int, cardType: CardType): boolean
+        +getCardType(playerIndex: int, cardIndex: int): CardType
+        +getHandSize(playerIndex: int): int
+        +getDeckCardType(deckIndex: int): CardType
+        +getIsReversed(): boolean
+        +setTurnToTargetedIndexIfAttackOccurred()
+        +getTurnCountOfPlayer(playerIndex: int): int
+    }
+
+    class Player {
+        -int playerID
+        -List<Card> hand
+        -boolean isDead
+        -Random rand
+        -boolean isCursed
+        +Player(playerID: int, instantiator: Instantiator)
+        +getPlayerID(): int
+        +addDefuse(defuse: Card)
+        +addCardToHand(card: Card)
+        +hasCard(cardType: CardType): boolean
+        +getHandSize(): int
+        +getCardAt(index: int): Card
+        +getIndexOfCard(cardType: CardType): int
+        +removeCardFromHand(index: int): CardType
+        +shuffleHand()
+        +checkNumberOfCardsInHand(cardType: CardType): int
+        +getIsDead(): boolean
+        +setIsDead()
+        +getIsCursed(): boolean
+        +setCursed(isCursed: boolean)
+    }
+
+    class Instantiator {
+        +createCard(cardType: CardType): Card
+        +createCard(cardType: CardType, behavior: CardBehavior): Card
+        +createRandom(): Random
+        +createCardList(): ArrayList<Card>
+    }
+}
+
+package ui {
+    class GameUI {
+        -Game game
+        -ResourceBundle messages
+        +GameUI(game: Game)
+        +chooseLanguage()
+        +chooseGame()
+        +chooseNumberOfPlayers()
+        +startTurn()
+        +endGame()
+        +checkIfGameOver(): boolean
+    }
+
+    class Main {
+        +main(args: String[])
+    }
+}
+
+CardBehavior <|.. ExplodingKittenBehavior
+CardBehavior <|.. NopeBehavior
+CardBehavior <|.. ShuffleBehavior
+CardBehavior <|.. DefuseBehavior
+
+Card --> CardBehavior
+Card --> CardType
+CardType --> GameType
+Deck --> Card
+Deck --> GameType
+Deck --> Instantiator
+Deck --> CardBehaviorFactory
+Game --> Deck
+Game --> Player
+Game --> GameType
+Game --> CardBehaviorFactory
+Player --> Card
+Player --> Instantiator
+GameUI --> Game
+Main --> GameUI
+Main --> Instantiator
+Main --> Deck
+Main --> Game
+Main --> Player
+Main --> CardBehaviorFactory
+
+CardBehaviorFactory --> CardBehavior
+@enduml
