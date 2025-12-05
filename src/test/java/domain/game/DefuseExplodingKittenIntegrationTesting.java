@@ -21,7 +21,8 @@ public class DefuseExplodingKittenIntegrationTesting {
 	@Given("a game with {int} players with current player at index {int}")
 	public void a_game_with_players_with_current_player_at_index(
 			Integer numPlayers, Integer playerIdx) {
-		instantiator = new Instantiator();
+        CardBehaviorFactory behaviorFactory = new CardBehaviorFactory();
+		instantiator = new Instantiator(behaviorFactory);
 
 		final int maxDeckSize = 42;
 

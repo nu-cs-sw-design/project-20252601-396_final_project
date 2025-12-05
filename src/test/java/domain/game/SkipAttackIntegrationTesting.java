@@ -23,7 +23,8 @@ public class SkipAttackIntegrationTesting {
 	public void
 	there_are_players_with_the_game_starting_at_the_first_player_s_turn
 		(Integer numOfPlayers) {
-		instantiator = new Instantiator();
+        CardBehaviorFactory behaviorFactory = new CardBehaviorFactory();
+		instantiator = new Instantiator(behaviorFactory);
 
 		final int maxDeckSize = 42;
 

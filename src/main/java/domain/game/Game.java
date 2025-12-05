@@ -1,6 +1,8 @@
 package domain.game;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 public class Game {
@@ -8,6 +10,7 @@ public class Game {
 	private domain.game.GameType gameType;
 	private domain.game.Deck deck;
 	private domain.game.Player[] players;
+    private CardBehaviorFactory behaviorFactory;
 	private Random rand;
 
 	private int currentPlayerTurn;
@@ -37,7 +40,7 @@ public class Game {
 	public Game (int numberOfPlayers, GameType gameType,
                  Deck deck, domain.game.Player[] players, Random rand,
                  List<Integer> attackQueue,
-                 int[] turnTracker) {
+                 int[] turnTracker, CardBehaviorFactory behaviorFactory) {
 		this.numberOfPlayers = numberOfPlayers;
 		this.gameType = gameType;
 		this.deck = deck;
@@ -51,7 +54,82 @@ public class Game {
 		this.attackCounter = 0;
 		this.numberOfAttacks = 0;
 		this.attacked = false;
+        this.behaviorFactory = behaviorFactory;
+
+        if (this.behaviorFactory == null) {
+            this.behaviorFactory = new CardBehaviorFactory();
+        }
 	}
+
+    // Original constructor for backwards compatibility
+    public Game(int numberOfPlayers, GameType gameType,
+                Deck deck, Player[] players, Random rand,
+                List<Integer> attackQueue,
+                int[] turnTracker) {
+        this(numberOfPlayers, gameType, deck, players, rand, attackQueue, turnTracker, null);
+    }
+
+    public boolean playCard(int playerIndex, int cardIndex, Map<String, Object> context) {
+        if (checkUserOutOfBounds(playerIndex)) {
+            throw new IllegalArgumentException("Invalid player index: " + playerIndex);
+        }
+
+        Player player = players[playerIndex];
+        if (cardIndex < 0 || cardIndex >= player.getHandSize()) {
+            throw new IllegalArgumentException("Invalid card index: " + cardIndex);
+        }
+
+        Card card = player.getCardAt(cardIndex);
+
+        if (card.getBehavior() != null && card.canPlay(this, playerIndex)) {
+            card.play(this, playerIndex, context);
+            player.removeCardFromHand(cardIndex);
+            return true;
+        } else {
+            return playCardLegacy(playerIndex, cardIndex, context);
+        }
+    }
+
+    public boolean playCardByType(int playerIndex, CardType cardType, Map<String, Object> context) {
+        if (!checkIfPlayerHasCard(playerIndex, cardType)) {
+            return false;
+        }
+
+        int cardIndex = getIndexOfCardFromHand(playerIndex, cardType);
+        return playCard(playerIndex, cardIndex, context);
+    }
+
+    private boolean playCardLegacy(int playerIndex, int cardIndex, Map<String, Object> context) {
+        Player player = players[playerIndex];
+        Card card = player.getCardAt(cardIndex);
+        CardType cardType = card.getCardType();
+
+        switch (cardType) {
+            case SHUFFLE:
+                int shuffleCount = context.containsKey("shuffleCount") ?
+                        (Integer) context.get("shuffleCount") : 1;
+                playShuffle(shuffleCount);
+                break;
+            case NOPE:
+                break;
+            case DEFUSE:
+                if (context.containsKey("insertionIndex")) {
+                    int insertionIndex = (Integer) context.get("insertionIndex");
+                    playDefuse(insertionIndex, playerIndex);
+                }
+                break;
+            default:
+                // Other cards do not have play methods since they have not been refactored according to the "behavior" pattern, just remove from hand
+                break;
+        }
+
+        player.removeCardFromHand(cardIndex);
+        return true;
+    }
+
+    public CardBehaviorFactory getBehaviorFactory() {
+        return behaviorFactory;
+    }
 
 	public void swapTopAndBottom() {
 		if (checkDeckHasOneCardOrLess()) {
@@ -153,22 +231,32 @@ public class Game {
 	}
 
 	public void playDefuse(int idxToInsertExplodingKitten, int playerIndex) {
-		if (checkUserOutOfBounds(playerIndex)) {
-			throw new UnsupportedOperationException(INVALID_PLAYER_INDEX_EXCEPTION);
-		}
-		Player currentPlayer = players[playerIndex];
-		try {
-			deck.insertExplodingKittenAtIndex(idxToInsertExplodingKitten);
-		} catch (UnsupportedOperationException e) {
-			throw e;
-		}
-		int defuseIdx = currentPlayer.getIndexOfCard(CardType.DEFUSE);
-		currentPlayer.removeCardFromHand(defuseIdx);
+        CardBehavior behavior = behaviorFactory != null ?
+                behaviorFactory.getBehavior(CardType.DEFUSE) : null;
 
-		if (playerIndex == currentPlayerTurn) {
-			setCurrentPlayerNumberOfTurns(0);
-		}
+        if (checkUserOutOfBounds(playerIndex)) {
+            throw new UnsupportedOperationException(INVALID_PLAYER_INDEX_EXCEPTION);
+        }
 
+        if (behavior instanceof DefuseBehavior) {
+            Map<String, Object> context = new HashMap<>();
+            context.put("insertionIndex", idxToInsertExplodingKitten);
+            behavior.play(this, playerIndex, context);
+        } else {
+            // Fallback to original implementation
+            Player currentPlayer = players[playerIndex];
+            try {
+                deck.insertExplodingKittenAtIndex(idxToInsertExplodingKitten);
+            } catch (UnsupportedOperationException e) {
+                throw e;
+            }
+            int defuseIdx = currentPlayer.getIndexOfCard(CardType.DEFUSE);
+            currentPlayer.removeCardFromHand(defuseIdx);
+
+            if (playerIndex == currentPlayerTurn) {
+                setCurrentPlayerNumberOfTurns(0);
+            }
+        }
 	}
 
 	public Card drawFromBottom() {
@@ -229,9 +317,19 @@ public class Game {
 	}
 
 	public void playShuffle(int numberOfShuffles) {
-		for (int i = 0; i < numberOfShuffles; i++) {
-			deck.shuffleDeck();
-		}
+        CardBehavior behavior = behaviorFactory != null ?
+                behaviorFactory.getBehavior(CardType.SHUFFLE) : null;
+
+        if (behavior instanceof ShuffleBehavior) {
+            Map<String, Object> context = new HashMap<>();
+            context.put("shuffleCount", numberOfShuffles);
+            behavior.play(this, currentPlayerTurn, context);
+        } else {
+            // Fallback to original implementation
+            for (int i = 0; i < numberOfShuffles; i++) {
+                deck.shuffleDeck();
+            }
+        }
 	}
 
 

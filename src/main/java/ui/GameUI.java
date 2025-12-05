@@ -2,21 +2,20 @@ package ui;
 
 import domain.game.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.text.MessageFormat;
-import java.util.Locale;
-import java.util.ResourceBundle;
-import java.util.Scanner;
 import java.nio.charset.StandardCharsets;
 
 
 public class GameUI {
 	private Game game;
 	private ResourceBundle messages;
+    private CardBehaviorFactory behaviorFactory;
 
-	public GameUI (Game game) { this.game = game; }
+	public GameUI (Game game) {
+        this.game = game;
+        this.behaviorFactory = game.getBehaviorFactory();
+    }
 
 	public void chooseLanguage() {
 		Scanner scanner = new Scanner(System.in, StandardCharsets.UTF_8);
@@ -459,6 +458,15 @@ public class GameUI {
 		}
 	}
 
+    private boolean playCardWithBehavior(int playerIndex, CardType cardType, Map<String, Object> context) {
+        try {
+            return game.playCardByType(playerIndex, cardType, context);
+        } catch (Exception e) {
+            System.out.println("Error playing card: " + e.getMessage());
+            return false;
+        }
+    }
+
 	private int playSpecialCombo() {
 		Scanner scanner = new Scanner(System.in, StandardCharsets.UTF_8);
 
@@ -524,160 +532,131 @@ public class GameUI {
 	}
 
 	private boolean checkAllPlayersForNope(int playerIndex) {
-		for (int playerCounter = 0;
-			playerCounter < getNumberOfPlayers(); playerCounter++) {
-			if (playerCounter != playerIndex) {
-				if (game.checkIfPlayerHasCard(playerCounter, CardType.NOPE)) {
-					final String hasNopeCard = MessageFormat.format(
-						messages.getString
-							("playerHasNopeCard"), playerCounter);
-					final String wouldYouPlayNope = messages.getString
-							("wouldYouPlayNope");
-					final String optionYes = messages.getString("optionYes");
-					final String optionNo = messages.getString("optionNo");
-					final String invalidChoice = messages.getString
-							("invalidChoiceForNope");
+        for (int playerCounter = 0; playerCounter < game.getNumberOfPlayers(); playerCounter++) {
+            if (playerCounter != playerIndex) {
+                if (game.checkIfPlayerHasCard(playerCounter, CardType.NOPE)) {
+                    final String hasNopeCard = MessageFormat.format(
+                            messages.getString("playerHasNopeCard"), playerCounter);
+                    final String wouldYouPlayNope = messages.getString("wouldYouPlayNope");
+                    final String optionYes = messages.getString("optionYes");
+                    final String optionNo = messages.getString("optionNo");
+                    final String invalidChoice = messages.getString("invalidChoiceForNope");
 
-					System.out.println(hasNopeCard);
-					System.out.println(wouldYouPlayNope);
-					System.out.println(optionYes);
-					System.out.println(optionNo);
+                    System.out.println(hasNopeCard);
+                    System.out.println(wouldYouPlayNope);
+                    System.out.println(optionYes);
+                    System.out.println(optionNo);
 
-					Scanner scanner = new Scanner(System.in,
-							StandardCharsets.UTF_8);
-					String userInput = scanner.nextLine();
-					switch (userInput) {
-						case "1":
-							playNope(playerCounter);
-							return !checkAllPlayersForNope
-									(playerCounter);
-						case "2":
-							final String didNotPlayNope =
-								MessageFormat.format
-								(messages.getString
-									("playerDidNotPlayNope"),
-										playerCounter);
-							System.out.println(didNotPlayNope);
-							break;
-						default:
-							System.out.println(invalidChoice);
-							playerCounter--;
-							break;
-					}
-				}
-			}
-		}
-		return false;
+                    Scanner scanner = new Scanner(System.in, StandardCharsets.UTF_8);
+                    String userInput = scanner.nextLine();
+
+                    switch (userInput) {
+                        case "1":
+                            if (behaviorFactory != null) {
+                                Map<String, Object> context = new HashMap<>();
+                                // Simplified for now
+                                playCardWithBehavior(playerCounter, CardType.NOPE, context);
+                            } else {
+                                // Fallback to original
+                                game.removeCardFromHand(playerCounter, CardType.NOPE);
+                            }
+
+                            final String successfullyPlayedNope = MessageFormat.format(
+                                    messages.getString("successfullyPlayedNope"), playerCounter);
+                            System.out.println(successfullyPlayedNope);
+
+                            return !checkAllPlayersForNope(playerCounter);
+                        case "2":
+                            final String didNotPlayNope = MessageFormat.format(
+                                    messages.getString("playerDidNotPlayNope"), playerCounter);
+                            System.out.println(didNotPlayNope);
+                            break;
+                        default:
+                            System.out.println(invalidChoice);
+                            playerCounter--;
+                            break;
+                    }
+                }
+            }
+        }
+        return false;
 	}
 
 	private boolean playExplodingKitten(int playerIndex) {
-		Scanner scanner = new Scanner(System.in, StandardCharsets.UTF_8);
+        Scanner scanner = new Scanner(System.in, StandardCharsets.UTF_8);
 
-		final String explodingKittenMessage = messages.getString("explodingKittenMessage");
-		final String noDefuseCardMessage = messages.getString("noDefuseCardMessage");
-		final String youExplodedMessage = messages.getString("youExplodedMessage");
-		final String defusedMessage = messages.getString("defusedMessage");
-		final String whereToInsertMessage = messages.getString("whereToInsertMessage");
-		final String validRangeMessage = MessageFormat.format(
-		messages.getString("validRangeMessage"), game.getDeckSize());
-		final String invalidInputMessage = messages.getString("invalidInputMessage");
-		final String cursedMessage = messages.getString("cursedExplodingMessage");
-		final String notDefuseCardMessage = messages.getString("notDefuseCardMessage");
-		final String discardCardMessage = messages.getString("discardCardMessage");
-		final String reenterDefuseMessage = messages.getString("reenterDefuseMessage");
+        final String explodingKittenMessage = messages.getString("explodingKittenMessage");
+        final String noDefuseCardMessage = messages.getString("noDefuseCardMessage");
+        final String youExplodedMessage = messages.getString("youExplodedMessage");
+        final String defusedMessage = messages.getString("defusedMessage");
+        final String whereToInsertMessage = messages.getString("whereToInsertMessage");
+        final String validRangeMessage = MessageFormat.format(
+                messages.getString("validRangeMessage"), game.getDeckSize());
+        final String invalidInputMessage = messages.getString("invalidInputMessage");
 
-		final String anotherExplodingKittenMessage =
-				messages.getString("anotherExplodingKittenMessage");
-		final String defusedFirstExplodingKitten =
-				messages.getString("defusedFirstExplodingKitten");
-		final String discardStreakingKittenMessage =
-				messages.getString("discardStreakingKittenMessage");
+        System.out.println(explodingKittenMessage);
 
-		System.out.println(explodingKittenMessage);
-		if (checkExplodingKitten(playerIndex)) {
-			System.out.println(noDefuseCardMessage);
-			System.out.println(youExplodedMessage);
-			return false;
-		} else {
-			Player player = game.getPlayerAtIndex(playerIndex);
-			if (player.getIsCursed()) {
-				System.out.println(cursedMessage);
+        if (!game.checkIfPlayerHasCard(playerIndex, CardType.DEFUSE)) {
+            System.out.println(noDefuseCardMessage);
+            System.out.println(youExplodedMessage);
 
-				while (true) {
-					final String findDefuseCardMessage = MessageFormat.format(
-							messages.getString("findDefuseCardMessage")
-							, player.getHandSize() - 1);
-					System.out.println(findDefuseCardMessage);
-					String defuseString = scanner.nextLine();
-					try {
-					int defuseIndex = Integer.parseInt(defuseString);
-					Card card = player.getCardAt(defuseIndex);
-					if (checkMatchingCardType(card.getCardType(),
-							CardType.DEFUSE)) {
-						break;
-					}
-					else if (checkMatchingCardType(card.getCardType(),
-					CardType.EXPLODING_KITTEN)) {
-						System.out.println(anotherExplodingKittenMessage);
-						player.removeCardFromHand(defuseIndex);
-						boolean exploded = playExplodingKitten(playerIndex);
-						if (!exploded) {
-							return false;
-						}
-						System.out.println(defusedFirstExplodingKitten);
-						if (!player.hasCard(CardType.DEFUSE)) {
-							System.out.println(noDefuseCardMessage);
-							System.out.println(youExplodedMessage);
-							return false;
-						}
-					} else if (checkMatchingCardType(card.getCardType(),
-						CardType.STREAKING_KITTEN)
-						&& player.hasCard(CardType.EXPLODING_KITTEN)) {
-						System.out.println(discardStreakingKittenMessage);
-						player.removeCardFromHand(defuseIndex);
-						player.removeCardFromHand(player.getIndexOfCard
-								(CardType.EXPLODING_KITTEN));
-						boolean exploded = playExplodingKitten(playerIndex);
-						if (!exploded) {
-							return false;
-						}
-						System.out.println(defusedFirstExplodingKitten);
-						if (!player.hasCard(CardType.DEFUSE)) {
-							System.out.println(noDefuseCardMessage);
-							System.out.println(youExplodedMessage);
-							return false;
-						}
+            ExplodingKittenBehavior behavior = null;
+            if (behaviorFactory != null) {
+                CardBehavior cb = behaviorFactory.getBehavior(CardType.EXPLODING_KITTEN);
+                if (cb instanceof ExplodingKittenBehavior) {
+                    behavior = (ExplodingKittenBehavior) cb;
+                }
+            }
 
-					} else {
-						System.out.println(notDefuseCardMessage);
-						player.removeCardFromHand(defuseIndex);
-						System.out.println(discardCardMessage);
-						System.out.println(reenterDefuseMessage);
-					}
+            if (behavior != null) {
+                Map<String, Object> context = new HashMap<>();
+                behavior.play(game, playerIndex, context);
+            } else {
+                // Fallback to original
+                return game.playExplodingKitten(playerIndex);
+            }
+            return false;
+        } else {
+            System.out.println(defusedMessage);
+            System.out.println(whereToInsertMessage);
+            System.out.println(validRangeMessage);
 
-					} catch (Exception e) {
-						System.out.println(invalidInputMessage);
-					}
-				}
-			}
+            DefuseBehavior defuseBehavior = null;
+            if (behaviorFactory != null) {
+                CardBehavior cb = behaviorFactory.getBehavior(CardType.DEFUSE);
+                if (cb instanceof DefuseBehavior) {
+                    defuseBehavior = (DefuseBehavior) cb;
+                }
+            }
 
-			System.out.println(defusedMessage);
-			System.out.println(whereToInsertMessage);
-			System.out.println(validRangeMessage);
-			while (true) {
-				String userInput = scanner.nextLine();
-				try {
-					int userIndex = Integer.parseInt(userInput);
-					game.playDefuse(userIndex, playerIndex);
-					game.getPlayerAtIndex(playerIndex).setCursed(false);
-					return true;
-				} catch (NumberFormatException e) {
-					System.out.println(invalidInputMessage);
-				} catch (UnsupportedOperationException e) {
-					System.out.println(e.getMessage());
-				}
-			}
-		}
+            while (true) {
+                String userInput = scanner.nextLine();
+                try {
+                    int insertionIndex = Integer.parseInt(userInput);
+
+                    if (defuseBehavior != null && !defuseBehavior.isValidInsertionIndex(game, insertionIndex)) {
+                        System.out.println(invalidInputMessage);
+                        continue;
+                    }
+
+                    if (defuseBehavior != null) {
+                        Map<String, Object> context = new HashMap<>();
+                        context.put("insertionIndex", insertionIndex);
+                        playCardWithBehavior(playerIndex, CardType.DEFUSE, context);
+                    } else {
+                        // Fallback to original
+                        game.playDefuse(insertionIndex, playerIndex);
+                    }
+
+                    game.getPlayerAtIndex(playerIndex).setCursed(false);
+                    return true;
+                } catch (NumberFormatException e) {
+                    System.out.println(invalidInputMessage);
+                } catch (UnsupportedOperationException e) {
+                    System.out.println(e.getMessage());
+                }
+            }
+        }
 	}
 
 	private boolean endTurn() {
@@ -1121,36 +1100,57 @@ public class GameUI {
 	}
 
 	private void playShuffle() {
-		final String decidedShuffle = messages.getString("decidedShuffle");
-		final String enterShuffleTimes = messages.getString("enterShuffleTimes");
-		final String enterPositiveInteger = messages.getString("enterPositiveInteger");
-		final String enterInteger = messages.getString("enterInteger");
+        Scanner scanner = new Scanner(System.in, StandardCharsets.UTF_8);
 
-		System.out.println(decidedShuffle);
+        final String decidedShuffle = messages.getString("decidedShuffle");
+        final String enterShuffleTimes = messages.getString("enterShuffleTimes");
+        final String enterPositiveInteger = messages.getString("enterPositiveInteger");
+        final String enterInteger = messages.getString("enterInteger");
 
-		Scanner scanner = new Scanner(System.in, StandardCharsets.UTF_8);
-		int numberOfShuffle;
-		final int maxNumberOfShuffles = 100;
-		while (true) {
-			System.out.print(enterShuffleTimes);
-			try {
-				numberOfShuffle = scanner.nextInt();
-				if (numberOfShuffle > maxNumberOfShuffles) {
-					final String maxShuffleMessage =
-							messages.getString("maxShuffleMessage");
-					System.out.println(maxShuffleMessage);
-				}
-				else if (numberOfShuffle > 0) {
-					break;
-				} else {
-					System.out.println(enterPositiveInteger);
-				}
-			} catch (Exception e) {
-				System.out.println(enterInteger);
-				scanner.next();
-			}
-		}
-		game.playShuffle(numberOfShuffle);
+        System.out.println(decidedShuffle);
+
+        int numberOfShuffle;
+        final int maxNumberOfShuffles = 100;
+
+        ShuffleBehavior behavior = null;
+        if (behaviorFactory != null) {
+            CardBehavior cb = behaviorFactory.getBehavior(CardType.SHUFFLE);
+            if (cb instanceof ShuffleBehavior) {
+                behavior = (ShuffleBehavior) cb;
+            }
+        }
+
+        while (true) {
+            System.out.print(enterShuffleTimes);
+            try {
+                numberOfShuffle = scanner.nextInt();
+
+                if (behavior != null && !behavior.isValidShuffleCount(numberOfShuffle)) {
+                    final String maxShuffleMessage = messages.getString("maxShuffleMessage");
+                    System.out.println(maxShuffleMessage);
+                    continue;
+                } else if (numberOfShuffle > maxNumberOfShuffles) {
+                    final String maxShuffleMessage = messages.getString("maxShuffleMessage");
+                    System.out.println(maxShuffleMessage);
+                } else if (numberOfShuffle > 0) {
+                    break;
+                } else {
+                    System.out.println(enterPositiveInteger);
+                }
+            } catch (Exception e) {
+                System.out.println(enterInteger);
+                scanner.next();
+            }
+        }
+
+        if (behavior != null) {
+            Map<String, Object> context = new HashMap<>();
+            context.put("shuffleCount", numberOfShuffle);
+            playCardWithBehavior(game.getPlayerTurn(), CardType.SHUFFLE, context);
+        } else {
+            // Fallback to original
+            game.playShuffle(numberOfShuffle);
+        }
 	}
 
 	private void playSkip(boolean superSkip) {

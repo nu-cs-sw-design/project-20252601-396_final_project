@@ -7,6 +7,7 @@ import domain.game.Deck;
 import domain.game.Game;
 import domain.game.GameType;
 import domain.game.Player;
+import domain.game.CardBehaviorFactory;
 
 import java.util.ArrayList;
 import java.security.SecureRandom;
@@ -19,29 +20,37 @@ public class Main {
 		final int playerIDThree = 3;
 		final int playerIDFour = 4;
 		final int maxDeckSize = 42;
-		Instantiator instantiator = new Instantiator();
 
-		Deck deck = new domain.game.Deck(new ArrayList<>(), new SecureRandom(),
-				GameType.NONE, 0, maxDeckSize, instantiator);
+        CardBehaviorFactory behaviorFactory = new CardBehaviorFactory();
+        Instantiator instantiator = new Instantiator(behaviorFactory);
+        Deck deck = new Deck(new ArrayList<>(), new SecureRandom(),
+                GameType.NONE, 0, maxDeckSize, instantiator, behaviorFactory);
+
 		Player[] players = {new Player(playerIDZero, instantiator),
 				new Player(playerIDOne, instantiator),
 				new Player(playerIDTwo, instantiator),
 				new Player(playerIDThree, instantiator),
 				new Player(playerIDFour, instantiator)};
 		int[] turnTracker = {1, 1, 1, 1, 1};
+
 		Game game = new Game(0, GameType.NONE, deck,
 				players, new SecureRandom(),
-				new ArrayList<Integer>(), turnTracker);
+				new ArrayList<Integer>(), turnTracker, behaviorFactory);
+
 		GameUI gameUI = new GameUI(game);
 		gameUI.chooseLanguage();
 		gameUI.chooseGame();
 		gameUI.chooseNumberOfPlayers();
+
 		for (int playerCounter = 0; playerCounter <
 				game.getNumberOfPlayers(); playerCounter++) {
-			game.getPlayerAtIndex(playerCounter).addDefuse(new Card(CardType.DEFUSE));
+            Card defuseCard = instantiator.createCard(CardType.DEFUSE);
+			game.getPlayerAtIndex(playerCounter).addDefuse(defuseCard);
 		}
+
 		game.getDeck().initializeDeck();
 		game.getDeck().shuffleDeck();
+
 		final int cardDrawnPerPlayer = 5;
 		for (int cardDrawnCounter = 0;
 			cardDrawnCounter < cardDrawnPerPlayer; cardDrawnCounter++) {

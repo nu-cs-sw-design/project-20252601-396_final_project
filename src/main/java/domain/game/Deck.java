@@ -10,6 +10,7 @@ public class Deck {
 	private int numberOfPlayers;
 	private int maxDeckSize;
 	private Instantiator instantiator;
+    private CardBehaviorFactory behaviorFactory;
 
 	private static final String DECK_FULL_EXCEPTION = "Deck is full, cannot insert more cards.";
 	private static final String DRAW_FROM_EMPTY_DECK_EXCEPTION =
@@ -26,14 +27,22 @@ public class Deck {
 
 	public Deck(List<Card> deck, Random rand,
 				domain.game.GameType gameType, int numberOfPlayers, int maxDeckSize,
-				Instantiator instantiator) {
+				Instantiator instantiator, CardBehaviorFactory behaviorFactory) {
 		this.deck = deck;
 		this.rand = rand;
 		this.gameType = gameType;
 		this.numberOfPlayers = numberOfPlayers;
 		this.maxDeckSize = maxDeckSize;
 		this.instantiator = instantiator;
+        this.behaviorFactory = behaviorFactory;
 	}
+
+    // Original constructor for backwards compatibility
+    public Deck(List<Card> deck, Random rand,
+                GameType gameType, int numberOfPlayers, int maxDeckSize,
+                Instantiator instantiator) {
+        this(deck, rand, gameType, numberOfPlayers, maxDeckSize, instantiator, null);
+    }
 
 	public int getDeckSize() {
 		return deck.size();
@@ -100,21 +109,38 @@ public class Deck {
 		}
 	}
 
+    // Legacy insertCard method
 	public void insertCard(CardType cardType, int numberOfCards, boolean bottom) {
 		if (addedOutOfBounds(numberOfCards)) {
 			throw new UnsupportedOperationException
 			(DECK_FULL_EXCEPTION);
 		}
-		if (!bottom) {
-			for (int i = 0; i < numberOfCards; i++) {
-				deck.add(deck.size(), instantiator.createCard(cardType));
-			}
-		} else {
-			for (int i = 0; i < numberOfCards; i++) {
-				deck.add(0, instantiator.createCard(cardType));
-			}
-		}
+
+        for (int i = 0; i < numberOfCards; i++) {
+            Card card = instantiator.createCard(cardType);
+            if (bottom) {
+                deck.add(0, card);
+            } else {
+                deck.add(deck.size(), card);
+            }
+        }
 	}
+
+    // Insert a card with a specific behavior (for the refactored card types)
+    public void insertCard(CardType cardType, CardBehavior behavior, int numberOfCards, boolean bottom) {
+        if (addedOutOfBounds(numberOfCards)) {
+            throw new UnsupportedOperationException(DECK_FULL_EXCEPTION);
+        }
+
+        for (int i = 0; i < numberOfCards; i++) {
+            Card card = instantiator.createCard(cardType, behavior);
+            if (bottom) {
+                deck.add(0, card);
+            } else {
+                deck.add(deck.size(), card);
+            }
+        }
+    }
 
 	public Card drawCard() {
 		if (this.deck.isEmpty()) {
