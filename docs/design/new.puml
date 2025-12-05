@@ -6,33 +6,39 @@ package domain.game {
     }
 
     class CardBehaviorFactory {
+        -Map<CardType, CardBehavior> behaviors
+        +CardBehaviorFactory()
         +getBehavior(cardType: CardType): CardBehavior
         +registerBehavior(cardType: CardType, behavior: CardBehavior): void
+        -registerDefaultBehaviors(): void
     }
 
     class ExplodingKittenBehavior {
         +play(game: Game, playerIndex: int, context: Map<String, Object>): void
         +canPlay(game: Game, playerIndex: int): boolean
-        -resolveExplosion(game: Game, playerIndex: int): boolean
     }
 
     class NopeBehavior {
+        -Card targetCard
+        -List<Integer> nopeChain
+        +NopeBehavior()
         +play(game: Game, playerIndex: int, context: Map<String, Object>): void
         +canPlay(game: Game, playerIndex: int): boolean
-        -findNopeTarget(game: Game): Card
-        -cancelCard(game: Game, targetCard: Card): boolean
+        -cancelCardEffect(game: Game): boolean
+        -shouldCancelCard(): boolean
     }
 
     class ShuffleBehavior {
         +play(game: Game, playerIndex: int, context: Map<String, Object>): void
         +canPlay(game: Game, playerIndex: int): boolean
         -performShuffle(game: Game, shuffleCount: int): void
+        +isValidShuffleCount(count: int): boolean
     }
 
     class DefuseBehavior {
         +play(game: Game, playerIndex: int, context: Map<String, Object>): void
         +canPlay(game: Game, playerIndex: int): boolean
-        -insertExplodingKitten(game: Game, insertionIndex: int): void
+        +isValidInsertionIndex(game: Game, index: int): boolean
     }
 
     class Card {
@@ -41,13 +47,17 @@ package domain.game {
         -boolean isFacedUp
         -CardBehavior behavior
         +Card(cardType: CardType, behavior: CardBehavior)
+        +Card(cardType: CardType)
         +getCardType(): CardType
         +play(game: Game, playerIndex: int, context: Map<String, Object>): void
         +canPlay(game: Game, playerIndex: int): boolean
+        +setBehavior(behavior: CardBehavior): void
+        +getBehavior(): CardBehavior
         +markCard()
         +checkIfMarked(): boolean
         +setFacedUp()
         +checkIfFacedUp(): boolean
+        -playLegacy(game: Game, playerIndex: int, context: Map<String, Object>): void
     }
 
     class CardType {
@@ -97,20 +107,22 @@ package domain.game {
         -Instantiator instantiator
         -CardBehaviorFactory behaviorFactory
         +Deck(List<Card>, Random, GameType, int, int, Instantiator, CardBehaviorFactory)
+        +Deck(List<Card>, Random, GameType, int, int, Instantiator)
         +getDeckSize(): int
         +getCardAtIndex(int): Card
         +initializeDeck()
         +shuffleDeck()
-        +insertCard(cardType: CardType, numberOfCards: int, bottom: boolean)
+        +insertCard(cardType: CardType, numberOfCards: int, bottom: boolean): void
+        +insertCard(cardType: CardType, behavior: CardBehavior, numberOfCards: int, bottom: boolean): void
         +drawCard(): Card
         +drawCardFromBottom(): Card
-        +setNumberOfPlayers(numberOfPlayers: int)
-        +chooseGameType(gameType: GameType)
+        +setNumberOfPlayers(numberOfPlayers: int): void
+        +chooseGameType(gameType: GameType): void
         +removeBombs(): int
-        +insertExplodingKittenAtIndex(indexToInsert: int)
-        +insertImplodingKittenAtIndex(indexToInsert: int, card: Card)
+        +insertExplodingKittenAtIndex(indexToInsert: int): void
+        +insertImplodingKittenAtIndex(indexToInsert: int, card: Card): void
         +getCardTypeAtIndex(index: int): CardType
-        +reorderDeckCards(newOrderIndices: int[], cardsToReorder: List<Card>)
+        +reorderDeckCards(newOrderIndices: int[], cardsToReorder: List<Card>): void
     }
 
     class Game {
@@ -129,58 +141,64 @@ package domain.game {
         -boolean attacked
         -CardBehaviorFactory behaviorFactory
         +Game(numberOfPlayers: int, gameType: GameType, deck: Deck, players: Player[], rand: Random, attackQueue: List<Integer>, turnTracker: int[], behaviorFactory: CardBehaviorFactory)
+        +Game(numberOfPlayers: int, gameType: GameType, deck: Deck, players: Player[], rand: Random, attackQueue: List<Integer>, turnTracker: int[])
         +playCard(playerIndex: int, cardIndex: int, context: Map<String, Object>): boolean
         +playCardByType(playerIndex: int, cardType: CardType, context: Map<String, Object>): boolean
+        +getBehaviorFactory(): CardBehaviorFactory
         +swapTopAndBottom()
         +stealRandomCard(playerToStealFrom: int): Card
-        +stealTypeCard(cardType: CardType, playerToStealFrom: int)
-        +startAttackPhase()
-        +playAttack()
-        +playTargetedAttack(attackedPlayerIndex: int)
+        +stealTypeCard(cardType: CardType, playerToStealFrom: int): void
+        +startAttackPhase(): void
+        +playAttack(): void
+        +playTargetedAttack(attackedPlayerIndex: int): void
         +playExplodingKitten(playerIndex: int): boolean
-        +playImplodingKitten()
-        +playDefuse(idxToInsertExplodingKitten: int, playerIndex: int)
+        +playImplodingKitten(): void
+        +playDefuse(idxToInsertExplodingKitten: int, playerIndex: int): void
         +drawFromBottom(): Card
-        +playCatomicBomb()
-        +setNumberOfPlayers(numberOfPlayers: int)
-        +playReverse()
-        +retrieveGameMode(gameType: GameType)
+        +playCatomicBomb(): void
+        +setNumberOfPlayers(numberOfPlayers: int): void
+        +playReverse(): void
+        +retrieveGameMode(gameType: GameType): void
         +selectRandomPlayer(): Player
-        +playShuffle(numberOfShuffles: int)
+        +playShuffle(numberOfShuffles: int): void
         +playSkip(superSkip: boolean): int
-        +playGarbageCollection(cardToDiscard: CardType)
+        +playGarbageCollection(cardToDiscard: CardType): void
         +getDeck(): Deck
-        +incrementPlayerTurn()
-        +incrementAttackCounter()
-        +setAttackCounter(playerIndex: int)
+        +incrementPlayerTurn(): void
+        +incrementAttackCounter(): void
+        +setAttackCounter(playerIndex: int): void
         +getGameType(): GameType
         +getPlayerAtIndex(playerIndex: int): Player
-        +addAttacks()
-        +playMark(playerIndex: int, cardIndex: int)
-        +addAttackQueue(attack: int)
+        +addAttacks(): void
+        +playMark(playerIndex: int, cardIndex: int): void
+        +addAttackQueue(attack: int): void
         +removeAttackQueue(): int
         +isAttackQueueEmpty(): boolean
-        +setPlayerNumberOfTurns()
+        +setPlayerNumberOfTurns(): void
         +getPlayerTurn(): int
         +getNumberOfPlayers(): int
         +checkNumberOfAlivePlayers(): int
-        +setCurrentPlayerNumberOfTurns(numberOfTurns: int)
-        +decrementNumberOfTurns()
+        +setCurrentPlayerNumberOfTurns(numberOfTurns: int): void
+        +decrementNumberOfTurns(): void
         +getNumberOfTurns(): int
         +getDeckSize(): int
         +drawCard(): Card
         +getCardAtIndex(cardIndex: int): Card
-        +removeCardFromHand(playerIndex: int, cardType: CardType)
+        +removeCardFromHand(playerIndex: int, cardType: CardType): void
         +getIndexOfCardFromHand(playerIndex: int, cardType: CardType): int
-        +addCardToHand(card: Card)
+        +addCardToHand(card: Card): void
         +checkIfPlayerDead(playerIndex: int): boolean
         +checkIfPlayerHasCard(playerIndex: int, cardType: CardType): boolean
         +getCardType(playerIndex: int, cardIndex: int): CardType
         +getHandSize(playerIndex: int): int
         +getDeckCardType(deckIndex: int): CardType
         +getIsReversed(): boolean
-        +setTurnToTargetedIndexIfAttackOccurred()
+        +setTurnToTargetedIndexIfAttackOccurred(): void
         +getTurnCountOfPlayer(playerIndex: int): int
+        +getAttacked(): boolean
+        +getAttackCounter(): int
+        +getNumberOfAttacks(): int
+        -playCardLegacy(playerIndex: int, cardIndex: int, context: Map<String, Object>): boolean
     }
 
     class Player {
@@ -191,22 +209,24 @@ package domain.game {
         -boolean isCursed
         +Player(playerID: int, instantiator: Instantiator)
         +getPlayerID(): int
-        +addDefuse(defuse: Card)
-        +addCardToHand(card: Card)
+        +addDefuse(defuse: Card): void
+        +addCardToHand(card: Card): void
         +hasCard(cardType: CardType): boolean
         +getHandSize(): int
         +getCardAt(index: int): Card
         +getIndexOfCard(cardType: CardType): int
         +removeCardFromHand(index: int): CardType
-        +shuffleHand()
+        +shuffleHand(): void
         +checkNumberOfCardsInHand(cardType: CardType): int
         +getIsDead(): boolean
-        +setIsDead()
+        +setIsDead(): void
         +getIsCursed(): boolean
-        +setCursed(isCursed: boolean)
+        +setCursed(isCursed: boolean): void
     }
 
     class Instantiator {
+        -CardBehaviorFactory behaviorFactory
+        +Instantiator(behaviorFactory: CardBehaviorFactory)
         +createCard(cardType: CardType): Card
         +createCard(cardType: CardType, behavior: CardBehavior): Card
         +createRandom(): Random
@@ -218,17 +238,73 @@ package ui {
     class GameUI {
         -Game game
         -ResourceBundle messages
+        -CardBehaviorFactory behaviorFactory
         +GameUI(game: Game)
-        +chooseLanguage()
-        +chooseGame()
-        +chooseNumberOfPlayers()
-        +startTurn()
-        +endGame()
+        +chooseLanguage(): void
+        +chooseGame(): void
+        +chooseNumberOfPlayers(): void
+        +startTurn(): void
+        +endGame(): void
         +checkIfGameOver(): boolean
+        -startAttackFollowUp(targeted: boolean): void
+        -swapTopAndBottom(): void
+        -playAttack(targeted: boolean): void
+        -playGarbageCollection(): void
+        -printPlayerTurn(): void
+        -playedCard(): int
+        -playCardWithBehavior(playerIndex: int, cardType: CardType, context: Map<String, Object>): boolean
+        -playSpecialCombo(): int
+        -playNope(playerIndex: int): void
+        -checkAllPlayersForNope(playerIndex: int): boolean
+        -playExplodingKitten(playerIndex: int): boolean
+        -endTurn(): boolean
+        -checkIfTheyEndTurn(): boolean
+        -playCurseOfTheCatButt(): void
+        -playSpecialComboTwoCards(cardType: CardType): void
+        -drawFromTheBottom(): void
+        -playMark(): void
+        -playCatomicBomb(): void
+        -playReverse(): void
+        -playSpecialComboThreeCards(cardType: CardType): void
+        -playSeeTheFuture(): void
+        -playShuffle(): void
+        -playSkip(superSkip: boolean): void
+        -playAlterTheFuture(): void
+        -checkIfCatCard(cardType: CardType): boolean
+        -checkNumberOfFeralCats(playerIndex: int): int
+        -promptCursedMessage(): void
+        -checkCardIfInvalid(card: Card): boolean
+        -playImplodingKitten(card: Card): boolean
+        -checkUserWithinBounds(userIndex: int): boolean
+        -checkUserOutOfBounds(userIndex: int): boolean
+        -checkIfPlayerIsAlive(userIndex: int): boolean
+        -hasCard(userIndex: int, cardType: CardType): boolean
+        -hasCardDirect(player: Player, cardType: CardType): boolean
+        -checkCardWithinBounds(cardIndex: int, player: Player): boolean
+        -checkCardWithinBoundsIndexed(cardIndex: int, playerIndex: int): boolean
+        -checkMatchingCardType(cardType: CardType, cardTypeTwo: CardType): boolean
+        -checkIfPlayerIsCursed(player: Player): boolean
+        -checkReversed(): boolean
+        -getHandSize(playerIndex: int): int
+        -checkIfCardMarked(playerIndex: int, cardIndex: int): boolean
+        -getNumberOfPlayers(): int
+        -checkExplodingKitten(playerIndex: int): boolean
+        -checkIfNumberOfTurnsGreaterThanZero(): boolean
+        -checkIfNumberOfTurnsIsZero(): boolean
+        -checkIfCurrentPlayerTurn(playerIndex: int): boolean
+        -getDeckSize(): int
+        -matchingGameType(gameType: GameType): boolean
+        -checkFeralCat(numberOfFeralCatsToPlay: int, numberOfFeralCats: int, numberOfCatType: int, threshold: int): boolean
+        -checkIfDifferentCardType(cardType: CardType, cardTypeTwo: CardType): boolean
+        -checkAllPlayersNope(): boolean
+        -checkNumberOfCards(player: Player, cardtype: CardType, threshold: int): boolean
+        -getLocalizedCardType(cardType: CardType): String
+        -checkNegativeIndexDeck(indexToInsert: int): boolean
+        -checkIfGreaterThanMaxIndexDeck(indexToInsert: int): boolean
     }
 
     class Main {
-        +main(args: String[])
+        +main(args: String[]): void
     }
 }
 
@@ -259,4 +335,5 @@ Main --> Player
 Main --> CardBehaviorFactory
 
 CardBehaviorFactory --> CardBehavior
+Instantiator --> CardBehaviorFactory
 @enduml
